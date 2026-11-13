@@ -69,7 +69,7 @@
   .wrap{max-width:84rem;margin-inline:auto;padding-left:var(--gl);padding-right:var(--gr)}
 
   /* —— first screen —— */
-  .hero{position:relative;isolation:isolate;display:flex;flex-direction:column;min-height:min(100svh,66rem);overflow:hidden;background:var(--blue);color:#fff}
+  .hero{position:relative;isolation:isolate;display:flex;flex-direction:column;min-height:100svh;overflow:hidden;background:var(--blue);color:#fff}
   #rope{position:absolute;inset:0;width:100%;height:100%;z-index:3;pointer-events:none}
   .bar{position:relative;z-index:5;display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;padding:1.3rem var(--gr) 0 var(--gl);font-size:.875rem}
   .ctrl{display:flex;flex-wrap:wrap;gap:.2rem 1.5rem}
@@ -104,7 +104,7 @@
   @keyframes tick{to{transform:translateX(-50%)}}
 
   /* —— the badge: an HTML card hung from a rope simulated in script —— */
-  .badge{--w:clamp(11.75rem,17.4vw,15.75rem);position:absolute;left:0;top:0;z-index:4;width:var(--w);font-size:calc(var(--w)/15.75);line-height:1.4;perspective:62em;transform-origin:50% 1.05em;touch-action:none;-webkit-user-select:none;user-select:none;cursor:grab;visibility:hidden;will-change:transform}
+  .badge{--w:clamp(11.75rem,17.4vw,18.25rem);position:absolute;left:0;top:0;z-index:4;width:var(--w);font-size:calc(var(--w)/15.75);line-height:1.4;perspective:62em;transform-origin:50% 1.05em;touch-action:none;-webkit-user-select:none;user-select:none;cursor:grab;visibility:hidden;will-change:transform}
   .badge.on{visibility:visible}
   .badge.dragging{cursor:grabbing}
   .clip{position:absolute;z-index:2;left:50%;top:-1.5em;width:1.3em;height:3.1em;margin-left:-.65em;border-radius:.4em;background:linear-gradient(90deg,#8a90a1,#eef0f5 42%,#a3a8b8 70%,#7b8192);box-shadow:0 .15em .3em rgba(0,6,40,.35)}
@@ -134,6 +134,16 @@
   .back a:hover{color:var(--lime)}
   .back a > span:last-child{font-family:var(--mono);font-weight:400;opacity:.6}
   .back p{flex:none;padding:0 1em 1em;font-family:var(--mono);font-size:.6em;color:rgba(255,255,255,.55)}
+
+  @media (min-width:52rem){
+    /* the badge hangs against the right margin: keep the hint above it and the intro clear of it */
+    .hint{margin-right:calc(clamp(11.75rem,17.4vw,18.25rem)/2 + 1.2vw + .75rem)}
+    .row{padding-right:calc(clamp(11.75rem,17.4vw,18.25rem) + 2rem)}
+  }
+  /* on very tall monitors let the next section peek in instead of stretching the first screen */
+  @media (min-height:75rem){
+    .hero{min-height:66rem}
+  }
 
   /* —— sections —— */
   .sec{background:var(--bg)}
@@ -235,7 +245,7 @@
         <button type="button" data-set-theme="light" aria-pressed="true"><span class="zh">浅色</span><span class="en">Light</span></button><span aria-hidden="true">/</span><button type="button" data-set-theme="dark" aria-pressed="false"><span class="zh">深色</span><span class="en">Dark</span></button>
       </div>
     </div>
-    <p class="hint" id="hint" hidden><span class="zh">拖着甩，点一下翻面 ↙</span><span class="en">Drag it. Click to flip ↙</span></p>
+    <p class="hint" id="hint" hidden><span class="zh">拖着甩，点一下翻面 ↘</span><span class="en">Drag it. Click to flip ↘</span></p>
   </div>
 
   <div class="room"></div>
@@ -509,10 +519,11 @@
   function measure(){
     W=hero.clientWidth;H=hero.clientHeight;dpr=Math.min(window.devicePixelRatio||1,2);
     cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr);
-    var small=W<832;
+    var small=W<832,g=Math.max(20,W*0.045);
     cw=badge.offsetWidth;ch=card.offsetHeight;hole=parseFloat(getComputedStyle(badge).fontSize)*1.05;
-    ax=small?Math.max(W*0.64,W-cw/2-18):W*0.775;
-    rope=small?clamp(H*0.11,98,120):clamp(H*0.2,110,220);
+    // the badge hangs just inside the right margin, level with the page gutter
+    ax=small?Math.max(W*0.64,W-cw/2-18):W-g-cw/2-Math.max(10,W*0.012);
+    rope=small?clamp(H*0.11,98,120):clamp(H*0.18,105,220);
     seg=rope/N;half=ch*0.5;sw=clamp(cw*0.058,10,15);
     // on phones the text starts below the hanging badge
     hero.style.setProperty('--zone',small?Math.round(ay+rope-hole+ch+26-hero.querySelector('.bar').offsetHeight)+'px':'0px');
@@ -620,7 +631,10 @@
   function begin(){
     if(ready)return;
     measure();fitMega();measure();
-    hang(still?0:(W<832?0.6:0.7));     // let go from the side so it swings in
+    // let go from the side so it swings in; never so far that the card leaves the screen
+    var a=0;
+    if(!still)a=W<832?0.6:Math.min(0.6,Math.asin(clamp((W-(ax+cw/2)-10)/(rope+half),0.1,0.7)));
+    hang(a);
     ready=true;badge.classList.add('on');
     var h=document.getElementById('hint');if(h)h.hidden=false;
     render();kick();
