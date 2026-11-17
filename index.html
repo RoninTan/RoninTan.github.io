@@ -189,7 +189,7 @@
   /* —— contact: back to the blue —— */
   .end{background:var(--blue);color:#fff}
   .end .wrap{display:grid;grid-template-columns:minmax(0,4fr) minmax(0,8fr);column-gap:3rem;padding-top:clamp(3.75rem,8.5vw,7rem);padding-bottom:clamp(3rem,6vw,5rem)}
-  .mail{display:inline-block;font-family:var(--display);font-weight:900;font-stretch:84%;font-size:clamp(1.55rem,4.9vw,4.4rem);line-height:1.1;text-decoration:none;overflow-wrap:anywhere;transition:color .2s}
+  .mail{display:inline-block;font-family:var(--display);font-weight:900;font-stretch:84%;font-size:clamp(1.55rem,4.9vw,4.4rem);line-height:1.1;text-decoration:none;white-space:nowrap;transition:color .2s}
   .mail:hover{color:var(--lime)}
   .copy{appearance:none;border:1px solid rgba(255,255,255,.5);background:none;padding:.35rem .9rem;font-family:var(--mono);font-size:.78rem;letter-spacing:.04em;text-transform:uppercase;cursor:pointer;transition:background .2s,color .2s,border-color .2s}
   .copy:hover{background:var(--lime);border-color:var(--lime);color:#0b0c10}
@@ -474,11 +474,10 @@
   if(mq.addEventListener)mq.addEventListener('change',sync);
   sync();
 
-  // Changsha time
-  var clocks=$$('[data-clock]');
+  // Changsha time (re-queried each tick: the ticker clones its items to fill a wide screen)
   try{
     var fmt=new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Shanghai',hour:'2-digit',minute:'2-digit',hour12:false});
-    var tick=function(){var s=fmt.format(new Date());clocks.forEach(function(c){c.textContent=s})};
+    var tick=function(){var s=fmt.format(new Date()),cs=$$('[data-clock]'),i;for(i=0;i<cs.length;i++)cs[i].textContent=s};
     tick();setInterval(tick,15000);
   }catch(e){}
 
@@ -624,13 +623,38 @@
   }
   function kick(){calm=0;if(!raf&&ready){last=performance.now();raf=requestAnimationFrame(frame)}}
 
+  /* the ticker is one strip of items: clone enough copies to outrun the viewport, then loop by exactly
+     one copy width, so the row never runs out and leaves a hole on a wide screen */
+  var ticker=document.querySelector('.ticker'),tickerRow=ticker?ticker.querySelector('div'):null,tickAnim=null;
+  function fitTicker(){
+    if(!tickerRow)return;
+    var first=tickerRow.querySelector('ul');
+    if(!first)return;
+    if(tickAnim){tickAnim.cancel();tickAnim=null}
+    tickerRow.style.animation='none';
+    Array.prototype.slice.call(tickerRow.querySelectorAll('ul')).forEach(function(u,i){if(i)u.parentNode.removeChild(u)});
+    var w=first.getBoundingClientRect().width;
+    if(!w)return;
+    var copies=Math.max(2,Math.ceil(ticker.clientWidth/w)+1),i;
+    for(i=1;i<copies;i++)tickerRow.appendChild(first.cloneNode(true));
+    if(!reduce)tickAnim=tickerRow.animate([{transform:'translateX(0)'},{transform:'translateX('+(-w)+'px)'}],{duration:w*40,easing:'linear',iterations:Infinity});
+  }
+  /* the address is one long unbreakable line: size it to the column instead of letting it wrap */
+  var mail=document.querySelector('.mail');
+  function fitMail(){
+    if(!mail||!mail.parentElement)return;
+    mail.style.fontSize='';
+    var avail=mail.parentElement.clientWidth,w=mail.getBoundingClientRect().width;
+    if(avail>0&&w>avail*0.98)mail.style.fontSize=(parseFloat(getComputedStyle(mail).fontSize)*avail*0.98/w).toFixed(2)+'px';
+  }
+
   function refit(){
-    measure();fitMega();measure();hang(0);
+    measure();fitMega();measure();fitTicker();fitMail();hang(0);
     if(ready){render();kick()}
   }
   function begin(){
     if(ready)return;
-    measure();fitMega();measure();
+    measure();fitMega();measure();fitTicker();fitMail();
     // let go from the side so it swings in; never so far that the card leaves the screen
     var a=0;
     if(!still)a=W<832?0.6:Math.min(0.6,Math.asin(clamp((W-(ax+cw/2)-10)/(rope+half),0.1,0.7)));
